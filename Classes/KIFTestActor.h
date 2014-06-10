@@ -59,12 +59,11 @@ return KIFTestStepResultWait; \
  @constant KIFTestStepResultSuccess The step succeeded and the test controller should move to the next step in the current scenario.
  @constant KIFTestStepResultWait The test isn't ready yet and should be tried again after a short delay.
  */
-enum {
+typedef NS_ENUM(NSUInteger, KIFTestStepResult) {
     KIFTestStepResultFailure = 0,
     KIFTestStepResultSuccess,
     KIFTestStepResultWait,
 };
-typedef NSInteger KIFTestStepResult;
 
 /*!
  @typedef KIFTestExecutionBlock
@@ -84,11 +83,12 @@ typedef void (^KIFTestCompletionBlock)(KIFTestStepResult result, NSError *error)
 
 @interface KIFTestActor : NSObject
 
+- (instancetype)initWithFile:(NSString *)file line:(NSInteger)line delegate:(id<KIFTestActorDelegate>)delegate;
 + (instancetype)actorInFile:(NSString *)file atLine:(NSInteger)line delegate:(id<KIFTestActorDelegate>)delegate;
 
-@property (nonatomic, readonly) NSString *file;
+@property (strong, nonatomic, readonly) NSString *file;
 @property (nonatomic, readonly) NSInteger line;
-@property (nonatomic, readonly) id<KIFTestActorDelegate> delegate;
+@property (weak, nonatomic, readonly) id<KIFTestActorDelegate> delegate;
 @property (nonatomic) NSTimeInterval executionBlockTimeout;
 
 - (instancetype)usingTimeout:(NSTimeInterval)executionBlockTimeout;
@@ -122,7 +122,7 @@ typedef void (^KIFTestCompletionBlock)(KIFTestStepResult result, NSError *error)
 /*!
  @abstract Waits for a certain amount of time before returning.
  @discussion In general when waiting for the app to get into a known state, it's better to use -waitForTappableViewWithAccessibilityLabel:, however this step may be useful in some situations as well.
- @param interval The number of seconds to wait before returning.
+ @param timeInterval The number of seconds to wait before returning.
  */
 - (void)waitForTimeInterval:(NSTimeInterval)timeInterval;
 

@@ -23,7 +23,16 @@ MAKE_CATEGORIES_LOADABLE(UIAccessibilityElement_KIFAdditions)
 + (UIView *)viewContainingAccessibilityElement:(UIAccessibilityElement *)element;
 {
     while (element && ![element isKindOfClass:[UIView class]]) {
-        element = [element accessibilityContainer];
+        // Sometimes accessibilityContainer will return a view that's too far up the view hierarchy
+        // UIAccessibilityElement instances will sometimes respond to view, so try to use that and then fall back to accessibilityContainer
+        // This workaround is only used for UISwitch, other classes still use accessibilityContainer to get the containing view
+        id view = [element respondsToSelector:@selector(view)] ? [(id)element view] : nil;
+        
+        if (view && [view isKindOfClass:[UISwitch class]]) {
+            element = view;
+        } else {
+            element = [element accessibilityContainer];
+        }
     }
     
     return (UIView *)element;
@@ -31,12 +40,17 @@ MAKE_CATEGORIES_LOADABLE(UIAccessibilityElement_KIFAdditions)
 
 + (BOOL)accessibilityElement:(out UIAccessibilityElement **)foundElement view:(out UIView **)foundView withLabel:(NSString *)label value:(NSString *)value traits:(UIAccessibilityTraits)traits tappable:(BOOL)mustBeTappable error:(out NSError **)error;
 {
+    return [self accessibilityElement:foundElement view:foundView withLabel:label value:value traits:traits tappable:mustBeTappable makeVisible:YES error:error];
+}
+
++ (BOOL)accessibilityElement:(out UIAccessibilityElement **)foundElement view:(out UIView **)foundView withLabel:(NSString *)label value:(NSString *)value traits:(UIAccessibilityTraits)traits tappable:(BOOL)mustBeTappable makeVisible:(BOOL)makeVisible error:(out NSError **)error;
+{
     UIAccessibilityElement *element = [self accessibilityElementWithLabel:label value:value traits:traits error:error];
     if (!element) {
         return NO;
     }
     
-    UIView *view = [self viewContainingAccessibilityElement:element tappable:mustBeTappable error:error];
+    UIView *view = [self viewContainingAccessibilityElement:element tappable:mustBeTappable makeVisible:makeVisible error:error];
     if (!view) {
         return NO;
     }
@@ -73,6 +87,11 @@ MAKE_CATEGORIES_LOADABLE(UIAccessibilityElement_KIFAdditions)
 
 + (UIView *)viewContainingAccessibilityElement:(UIAccessibilityElement *)element tappable:(BOOL)mustBeTappable error:(NSError **)error;
 {
+    return [self viewContainingAccessibilityElement:element tappable:mustBeTappable makeVisible:YES error:error];
+}
+
++ (UIView *)viewContainingAccessibilityElement:(UIAccessibilityElement *)element tappable:(BOOL)mustBeTappable makeVisible:(BOOL)makeVisible error:(NSError **)error;
+{
     // Small safety mechanism.  If someone calls this method after a failing call to accessibilityElementWithLabel:..., we don't want to wipe out the error message.
     if (!element && error && *error) {
         return nil;
@@ -87,21 +106,30 @@ MAKE_CATEGORIES_LOADABLE(UIAccessibilityElement_KIFAdditions)
         return nil;
     }
     
-    // Scroll the view to be visible if necessary
-    UIScrollView *scrollView = (UIScrollView *)view;
-    while (scrollView && ![scrollView isKindOfClass:[UIScrollView class]]) {
-        scrollView = (UIScrollView *)scrollView.superview;
-    }
-    if (scrollView) {
-        if ((UIAccessibilityElement *)view == element) {
-            [scrollView scrollViewToVisible:view animated:YES];
-        } else {
-            CGRect elementFrame = [view.window convertRect:element.accessibilityFrame toView:scrollView];
-            [scrollView scrollRectToVisible:elementFrame animated:YES];
+    if (makeVisible) {
+        UIView *superview = (UIScrollView *)view;
+        while (superview) {
+            // Fix for iOS7 table view cells containing scroll views
+            if ([superview.superview isKindOfClass:[UITableViewCell class]]) {
+                break;
+            }
+            
+            if ([superview isKindOfClass:[UIScrollView class]]) {
+                UIScrollView *scrollView = (UIScrollView *)superview;
+                
+                if ((UIAccessibilityElement *)view == element) {
+                    [scrollView scrollViewToVisible:view animated:YES];
+                } else {
+                    CGRect elementFrame = [view.window convertRect:element.accessibilityFrame toView:scrollView];
+                    [scrollView scrollRectToVisible:elementFrame animated:YES];
+                }
+                
+                // Give the scroll view a small amount of time to perform the scroll.
+                CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.3, false);
+            }
+            
+            superview = superview.superview;
         }
-        
-        // Give the scroll view a small amount of time to perform the scroll.
-        CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.3, false);
     }
     
     if ([[UIApplication sharedApplication] isIgnoringInteractionEvents]) {
