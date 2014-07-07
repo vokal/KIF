@@ -83,7 +83,6 @@ typedef void (^KIFTestCompletionBlock)(KIFTestStepResult result, NSError *error)
 
 @interface KIFTestActor : NSObject
 
-- (instancetype)initWithFile:(NSString *)file line:(NSInteger)line delegate:(id<KIFTestActorDelegate>)delegate;
 + (instancetype)actorInFile:(NSString *)file atLine:(NSInteger)line delegate:(id<KIFTestActorDelegate>)delegate;
 
 @property (strong, nonatomic, readonly) NSString *file;
@@ -110,6 +109,19 @@ typedef void (^KIFTestCompletionBlock)(KIFTestStepResult result, NSError *error)
  @abstract Sets the default amount of time to assign to execution blocks before assuming they failed.
  */
 + (void)setDefaultTimeout:(NSTimeInterval)newDefaultTimeout;
+
+/*!
+ @method stepDelay
+ @abstract The amount of time that execution blocks use before trying again to met desired conditions.
+ @discussion To change the default value of the step delay property, call +setStepDelay: with a different value.
+ */
++ (NSTimeInterval)stepDelay;
+
+/*!
+ @method setStepDelay:
+ @abstract Sets the amount of time that execution blocks use before trying again to met desired conditions.
+ */
++ (void)setStepDelay:(NSTimeInterval)newStepDelay;
 
 /*!
  @abstract Fails the test.
