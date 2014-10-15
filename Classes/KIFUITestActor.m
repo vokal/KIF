@@ -534,12 +534,10 @@
 
 - (void)choosePhotoInAlbum:(NSString *)albumName atRow:(NSInteger)row column:(NSInteger)column
 {
-    [self tapViewWithAccessibilityLabel:@"Choose Photo"];
-    
     // This is basically the same as the step to tap with an accessibility label except that the accessibility labels for the albums have the number of photos appended to the end, such as "My Photos (3)." This means that we have to do a prefix match rather than an exact match.
     [self runBlock:^KIFTestStepResult(NSError **error) {
         
-        NSString *labelPrefix = [NSString stringWithFormat:@"%@,   (", albumName];
+        NSString *labelPrefix = [NSString stringWithFormat:@"%@", albumName];
         UIAccessibilityElement *element = [[UIApplication sharedApplication] accessibilityElementMatchingBlock:^(UIAccessibilityElement *element) {
             return [element.accessibilityLabel hasPrefix:labelPrefix];
         }];
@@ -565,7 +563,7 @@
     }];
     
     // Wait for media picker view controller to be pushed.
-    [self waitForTimeInterval:0.5];
+    [self waitForTimeInterval:1];
     
     // Tap the desired photo in the grid
     // TODO: This currently only works for the first page of photos. It should scroll appropriately at some point.
@@ -748,13 +746,13 @@
         return KIFTestStepResultSuccess;
     }];
 
-    [tableView scrollToRowAtIndexPath:indexPath atScrollPosition:UITableViewScrollPositionMiddle animated:YES];
-    [self waitForTimeInterval:0.5];
-    UITableViewCell *cell = [tableView cellForRowAtIndexPath:indexPath];
-
-    if (!cell) {
-        [self failWithError:[NSError KIFErrorWithFormat: @"Table view cell at index path %@ not found", indexPath] stopTest:YES];
-    }
+    __block UITableViewCell *cell = nil;
+    [self runBlock:^KIFTestStepResult(NSError **error) {
+        [tableView scrollToRowAtIndexPath:indexPath atScrollPosition:UITableViewScrollPositionMiddle animated:YES];
+        cell = [tableView cellForRowAtIndexPath:indexPath];
+        KIFTestWaitCondition(!!cell, error, @"Table view cell at index path %@ not found", indexPath);
+        return KIFTestStepResultSuccess;
+    }];
 
     return cell;
 }
